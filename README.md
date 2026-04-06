@@ -1,30 +1,34 @@
-1. Get the Code
-Open your terminal on the new PC, navigate to your development folder, and run:
+# 📦 Davao MSME Hub
 
-Bash
-git clone https://github.com/jcvelos/davao_msme_hub.git
-Then, move into that directory:
+A Flutter-based mobile application designed to streamline operations and provide a centralized dashboard for local MSMEs. This project focuses on a robust authentication system and seamless data integration.
 
-Bash
+---
+
+## 🚀 Getting Started (Migration Guide)
+
+Follow these steps to set up the project on a new development machine.
+
+### 1. Clone the Repository
+Open your terminal, navigate to your desired development directory, and run:
+```bash
+git clone [https://github.com/jcvelos/davao_msme_hub.git](https://github.com/jcvelos/davao_msme_hub.git)
 cd davao_msme_hub
-2. Restore the Project Structure
-Since you didn't push the ios, windows, or web folders (only the android manifest and the lib), Flutter might get confused if you try to run it immediately. Run this command to regenerate the missing platform-specific files:
 
-Bash
+2. Restore Project Structure
+Because this repository contains only the core logic and Android configurations, you need to regenerate the platform-specific boilerplate:
+# This "heals" the project by adding missing platform folders (iOS, Web, etc.)
+
 flutter create .
-Note: This won't overwrite your lib or AndroidManifest.xml; it just "heals" the project by adding back the missing boilerplate files required to run the app.
 
 3. Install Dependencies
-Your pubspec.yaml is there, but the actual packages are not. Download them with:
+Fetch all the necessary packages defined in the pubspec.yaml:
 
-Bash
 flutter pub get
-4. Final Verification
-Check if everything is linked up correctly by running:
 
-Bash
+4. Verification & Execution
+Ensure your environment is correctly configured:
 flutter doctor
-If that looks good, you're ready to start coding or running the app:
 
-Bash
+If everything is green, launch the application:
+
 flutter run --no-enable-impeller
