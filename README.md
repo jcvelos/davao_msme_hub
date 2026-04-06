@@ -11,7 +11,7 @@ Follow these steps to set up the project on a new development machine.
 ### 1. Clone the Repository
 Open your terminal, navigate to your desired development directory, and run:
 ```bash
-git clone [https://github.com/jcvelos/davao_msme_hub.git](https://github.com/jcvelos/davao_msme_hub.git)
+git clone https://github.com/jcvelos/davao_msme_hub.git
 cd davao_msme_hub
 
 2. Restore Project Structure
