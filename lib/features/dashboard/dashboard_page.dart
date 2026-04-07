@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../model/product_model.dart';
-import 'product_detail_page.dart'; // Ensure this import points to the correct file
+import 'product_detail_page.dart';
+import '../auth/login_page.dart'; // Ensure this path is correct
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -119,8 +120,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ... (Keep your _buildCatalogTab, _buildFavoritesTab, _buildHeader, etc.) ...
-  
   Widget _buildCatalogTab() {
     return RefreshIndicator(
       onRefresh: _fetchProducts,
@@ -159,36 +158,54 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-Widget _buildHeader() {
-  final user = Supabase.instance.client.auth.currentUser;
-  final email = user?.email 
-      ?? user?.userMetadata?['email'] as String? 
-      ?? 'Guest';
+  Widget _buildHeader() {
+    final user = Supabase.instance.client.auth.currentUser;
+    final email = user?.email 
+        ?? user?.userMetadata?['email'] as String? 
+        ?? 'Guest';
 
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("Davao MSME Hub",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green[900])),
-        Text("Find the best local pasalubong",
-            style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            const Icon(Icons.account_circle, size: 14, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              "Logged in as $email",
-              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Davao MSME Hub",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green[900])),
+              Text("Find the best local pasalubong",
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.account_circle, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Logged in as $email",
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSearchBar() {
     return Padding(
@@ -251,7 +268,6 @@ Widget _buildHeader() {
   }
 }
 
-// Keep ProductCard here as a private helper widget for the dashboard
 class ProductCard extends StatelessWidget {
   final Product product;
   final bool isFavorite;
@@ -277,7 +293,9 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Image.network(product.imageUrl, fit: BoxFit.cover, width: double.infinity),
+                  child: product.imageUrl.isNotEmpty 
+                    ? Image.network(product.imageUrl, fit: BoxFit.cover, width: double.infinity)
+                    : Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported)),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(8.0),

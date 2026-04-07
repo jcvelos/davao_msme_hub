@@ -23,24 +23,17 @@ class _LoginPageState extends State<LoginPage> {
     _setupAuthListener();
   }
 
-  /// Single source of truth for Navigation.
-  /// Ignores the `initialSession` event so that a previously saved session
-  /// does NOT auto-navigate away from the login page on app start.
   void _setupAuthListener() {
-    _authStateSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen(
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
       (data) {
         final session = data.session;
         final event = data.event;
 
         debugPrint("Auth Event: $event | Has session: ${session != null}");
 
-        // `initialSession` fires on app start when Supabase restores a cached
-        // session. We intentionally ignore it here — the user must actively
-        // sign in to reach the dashboard from this page.
+        // Ignore initial session to force user interaction on this page
         if (event == AuthChangeEvent.initialSession) return;
 
-        // Only navigate on a real sign-in event, and only once.
         if (event == AuthChangeEvent.signedIn &&
             session != null &&
             mounted &&
@@ -59,31 +52,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Email & Password Sign In
-  Future<void> _signIn() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showError("Please fill in all fields");
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      // Navigation is handled by the auth listener above.
-    } on AuthException catch (error) {
-      _showError(error.message);
-      if (mounted) setState(() => _isLoading = false);
-    } catch (error) {
-      _showError("An unexpected error occurred.");
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  /// Google / ADDU Mail Sign In via OAuth.
+  /// Google / ADDU Mail Sign In via OAuth
   Future<void> _signInWithGoogle() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -92,10 +61,14 @@ class _LoginPageState extends State<LoginPage> {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.flutter://callback',
+        // KEY UPDATE: This forces Google to show the account switcher
+        queryParams: {
+          'prompt': 'select_account',
+        },
       );
-      // The external browser opens. When the user completes sign-in,
-      // the deep link brings them back and the auth listener fires signedIn.
-      // Reset loading here since the app goes to background during OAuth.
+      
+      // We set loading to false here because the app goes to background 
+      // to open the browser.
       if (mounted) setState(() => _isLoading = false);
     } on AuthException catch (error) {
       _showError(error.message);
@@ -106,13 +79,31 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Guest / Anonymous Login
+  Future<void> _signIn() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showError("Please fill in all fields");
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    } on AuthException catch (error) {
+      _showError(error.message);
+      if (mounted) setState(() => _isLoading = false);
+    } catch (error) {
+      _showError("An unexpected error occurred.");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _signInAsGuest() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signInAnonymously();
-      // Navigation handled by the auth listener.
     } on AuthException catch (error) {
       _showError(error.message);
       if (mounted) setState(() => _isLoading = false);
@@ -204,8 +195,7 @@ class _LoginPageState extends State<LoginPage> {
               decoration: InputDecoration(
                 labelText: "Email",
                 prefixIcon: const Icon(Icons.email_outlined),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 16),
@@ -215,8 +205,7 @@ class _LoginPageState extends State<LoginPage> {
               decoration: InputDecoration(
                 labelText: "Password",
                 prefixIcon: const Icon(Icons.lock_outline),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 24),
@@ -247,8 +236,7 @@ class _LoginPageState extends State<LoginPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green[700],
           foregroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -266,8 +254,7 @@ class _LoginPageState extends State<LoginPage> {
       onPressed: _isLoading ? null : _signInWithGoogle,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(double.infinity, 50),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
