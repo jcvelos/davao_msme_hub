@@ -30,11 +30,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- Supabase OAuth Callback -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="io.supabase.flutter" android:host="callback" />
+            </intent-filter>
+            
+            <!-- Google Sign-In Callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.googleusercontent.apps.361038528251-tb7hubrt02f6qouu9p6u0c2gqfid2m8n" />
             </intent-filter>
             
         </activity>

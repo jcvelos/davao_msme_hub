@@ -8,6 +8,7 @@ class SupabaseConfig {
     await Supabase.initialize(
       url: url,
       anonKey: anonKey,
+      debug: true,
     );
   }
 }

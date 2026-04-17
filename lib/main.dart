@@ -1,3 +1,5 @@
+// John Carl Velos - Davao Pasalubong Hub - 2024
+
 import 'package:flutter/material.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_page.dart';

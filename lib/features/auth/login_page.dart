@@ -13,6 +13,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLoading = false;
   bool _hasNavigated = false;
   StreamSubscription<AuthState>? _authStateSubscription;
@@ -24,22 +25,29 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _setupAuthListener() {
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
+    _authStateSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen(
       (data) {
         final session = data.session;
         final event = data.event;
 
         debugPrint("Auth Event: $event | Has session: ${session != null}");
 
-        // Ignore initial session to force user interaction on this page
-        if (event == AuthChangeEvent.initialSession) return;
-
-        if (event == AuthChangeEvent.signedIn &&
+        if ((event == AuthChangeEvent.signedIn ||
+                event == AuthChangeEvent.initialSession ||
+                event == AuthChangeEvent.tokenRefreshed) &&
             session != null &&
             mounted &&
             !_hasNavigated) {
+          debugPrint("Auth changed, will navigate to dashboard");
           _hasNavigated = true;
-          _navigateToDashboard();
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) _navigateToDashboard();
+          });
+        } else if (event == AuthChangeEvent.signedOut && mounted) {
+          if (_isLoading) {
+            setState(() => _isLoading = false);
+          }
         }
       },
       onError: (error) {
@@ -52,39 +60,37 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Google / ADDU Mail Sign In via OAuth
+  /// Google Sign In
   Future<void> _signInWithGoogle() async {
     if (_isLoading) return;
+
+    _hasNavigated = false;
     setState(() => _isLoading = true);
 
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.flutter://callback',
-        // KEY UPDATE: This forces Google to show the account switcher
-        queryParams: {
-          'prompt': 'select_account',
-        },
       );
-      
-      // We set loading to false here because the app goes to background 
-      // to open the browser.
-      if (mounted) setState(() => _isLoading = false);
     } on AuthException catch (error) {
       _showError(error.message);
       if (mounted) setState(() => _isLoading = false);
     } catch (error) {
-      _showError("Could not open Google Sign-In. Please try again.");
+      debugPrint("Google Sign-In failed: $error");
+      _showError("Google Sign-In failed.");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _signIn() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
       _showError("Please fill in all fields");
       return;
     }
+
     setState(() => _isLoading = true);
+
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
@@ -101,7 +107,9 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _signInAsGuest() async {
     if (_isLoading) return;
+
     setState(() => _isLoading = true);
+
     try {
       await Supabase.instance.client.auth.signInAnonymously();
     } on AuthException catch (error) {
@@ -112,6 +120,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _navigateToDashboard() {
     if (!mounted) return;
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const DashboardPage()),
@@ -121,6 +130,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _showError(String message) {
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -156,7 +166,8 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  const Icon(Icons.storefront, size: 80, color: Colors.white),
+                  const Icon(Icons.storefront,
+                      size: 80, color: Colors.white),
                   const SizedBox(height: 10),
                   const Text(
                     "Davao MSME Hub",
@@ -180,14 +191,16 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildLoginCard() {
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 8,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
             const Text("Welcome Back",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                style:
+                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             TextField(
               controller: _emailController,
@@ -195,7 +208,8 @@ class _LoginPageState extends State<LoginPage> {
               decoration: InputDecoration(
                 labelText: "Email",
                 prefixIcon: const Icon(Icons.email_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 16),
@@ -205,7 +219,8 @@ class _LoginPageState extends State<LoginPage> {
               decoration: InputDecoration(
                 labelText: "Password",
                 prefixIcon: const Icon(Icons.lock_outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 24),
@@ -219,7 +234,8 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: _isLoading ? null : _signInAsGuest,
               child: const Text("Continue as Guest",
                   style: TextStyle(
-                      color: Colors.green, fontWeight: FontWeight.bold)),
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -236,7 +252,8 @@ class _LoginPageState extends State<LoginPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green[700],
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -254,7 +271,8 @@ class _LoginPageState extends State<LoginPage> {
       onPressed: _isLoading ? null : _signInWithGoogle,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
