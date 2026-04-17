@@ -15,14 +15,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   String _getCategoryName(String id) {
     switch (id) {
-      case '1': return 'Fruits';
-      case '2': return 'Delicacies';
-      case '3': return 'Crafts';
-      default: return 'General';
+      case '1':
+        return 'Fruits';
+      case '2':
+        return 'Delicacies';
+      case '3':
+        return 'Crafts';
+      default:
+        return 'General';
     }
   }
 
   Future<void> _addToCart() async {
+    if (widget.product.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This product is out of stock'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
     setState(() => _isLoading = true);
@@ -33,10 +46,25 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           .eq('user_id', userId)
           .eq('product_id', widget.product.id)
           .maybeSingle();
+      final newQty = (existing?['quantity'] ?? 0) + _quantity;
+      if (newQty > widget.product.stock) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Only ${widget.product.stock} items available in stock',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
       if (existing != null) {
         await Supabase.instance.client
             .from('carts')
-            .update({'quantity': existing['quantity'] + _quantity})
+            .update({'quantity': newQty})
             .eq('user_id', userId)
             .eq('product_id', widget.product.id);
       } else {
@@ -82,8 +110,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             ? Image.network(p.imageUrl, fit: BoxFit.cover)
                             : Container(
                                 color: const Color(0xFFE8F5E9),
-                                child: Icon(Icons.store,
-                                    size: 72, color: Colors.green[300]),
+                                child: Icon(
+                                  Icons.store,
+                                  size: 72,
+                                  color: Colors.green[300],
+                                ),
                               ),
                       ),
                       Positioned(
@@ -91,14 +122,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         right: 12,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.green[800]!.withOpacity(0.9),
+                            color: p.stock > 0
+                                ? Colors.green[800]!.withOpacity(0.9)
+                                : Colors.red.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text('In Stock',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 12)),
+                          child: Text(
+                            p.stock > 0
+                                ? 'In Stock (${p.stock})'
+                                : 'Out of Stock',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -114,23 +155,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.name,
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600)),
+                              Text(
+                                p.name,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               const SizedBox(height: 2),
-                              Text('per kilogram',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[600])),
+                              Text(
+                                'per kilogram',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Text('₱${p.price.toStringAsFixed(2)}',
-                            style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green[800])),
+                        Text(
+                          '₱${p.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green[800],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -148,19 +198,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Description',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[500],
-                                  letterSpacing: 0.5)),
+                          Text(
+                            'Description',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[500],
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             p.description.isNotEmpty
                                 ? p.description
                                 : 'No description available.',
-                            style: const TextStyle(
-                                fontSize: 14, height: 1.6),
+                            style: const TextStyle(fontSize: 14, height: 1.6),
                           ),
                         ],
                       ),
@@ -173,12 +225,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Store details',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[500],
-                                letterSpacing: 0.5)),
+                        Text(
+                          'Store details',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[500],
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -246,15 +301,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         SizedBox(
                           width: 36,
-                          child: Text('$_quantity',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600)),
+                          child: Text(
+                            '$_quantity',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                         _StepperButton(
                           icon: Icons.add,
-                          onPressed: () => setState(() => _quantity++),
+                          onPressed: _quantity < widget.product.stock
+                              ? () => setState(() => _quantity++)
+                              : null,
                           filled: true,
                         ),
                       ],
@@ -272,9 +332,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.shopping_cart_outlined,
-                                size: 18),
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 18,
+                              ),
                         label: Text(
                           _isLoading
                               ? 'Adding...'
@@ -284,7 +349,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           backgroundColor: Colors.green[800],
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                     ),
@@ -330,22 +396,26 @@ class _InfoTile extends StatelessWidget {
               color: Colors.green[50],
               shape: BoxShape.circle,
             ),
-            child: Icon(icon,
-                size: 16, color: iconColor ?? Colors.green[800]),
+            child: Icon(icon, size: 16, color: iconColor ?? Colors.green[800]),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey[500])),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w500),
-                    maxLines: 2,
-                    overflow: TextOverflow.visible),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.visible,
+                ),
               ],
             ),
           ),
@@ -379,13 +449,15 @@ class _StepperButton extends StatelessWidget {
           color: filled ? Colors.green[800] : Colors.grey[100],
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon,
-            size: 18,
-            color: filled
-                ? Colors.white
-                : onPressed == null
-                    ? Colors.grey[400]
-                    : Colors.grey[700]),
+        child: Icon(
+          icon,
+          size: 18,
+          color: filled
+              ? Colors.white
+              : onPressed == null
+              ? Colors.grey[400]
+              : Colors.grey[700],
+        ),
       ),
     );
   }

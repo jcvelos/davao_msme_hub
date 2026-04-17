@@ -7,6 +7,7 @@ class Product {
   final String imageUrl;
   final int categoryId;
   final double distance;
+  final int stock;
 
   Product({
     required this.id,
@@ -17,11 +18,16 @@ class Product {
     required this.imageUrl,
     required this.categoryId,
     this.distance = 0.0,
+    this.stock = 0,
   });
 
-  factory Product.fromMap(Map<String, dynamic> map, {double calculatedDistance = 0.0}) {
-    // 1. Safely handle the vendors map
-    final vendorData = map['vendors'] is Map ? map['vendors'] as Map<String, dynamic> : null;
+  factory Product.fromMap(
+    Map<String, dynamic> map, {
+    double calculatedDistance = 0.0,
+  }) {
+    final vendorData = map['vendors'] is Map
+        ? map['vendors'] as Map<String, dynamic>
+        : null;
 
     return Product(
       id: map['id'] ?? 0,
@@ -33,6 +39,7 @@ class Product {
       imageUrl: map['image_url'] ?? '',
       categoryId: map['category_id'] ?? 0,
       distance: calculatedDistance,
+      stock: map['stock_quantity'] ?? 0,
     );
   }
 }

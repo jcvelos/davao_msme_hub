@@ -53,7 +53,9 @@ class _DashboardPageState extends State<DashboardPage> {
           .eq('user_id', userId);
       if (!mounted) return;
       setState(() {
-        _favoriteIds = (response as List).map((e) => e['product_id'] as int).toList();
+        _favoriteIds = (response as List)
+            .map((e) => e['product_id'] as int)
+            .toList();
       });
     } catch (e) {
       debugPrint('Error loading favorites: $e');
@@ -110,7 +112,9 @@ class _DashboardPageState extends State<DashboardPage> {
           .eq('user_id', userId);
       if (!mounted) return;
       setState(() {
-        _cartItems = {for (var e in response) e['product_id'] as int: e['quantity'] as int};
+        _cartItems = {
+          for (var e in response) e['product_id'] as int: e['quantity'] as int,
+        };
       });
     } catch (e) {
       debugPrint('Error loading cart: $e');
@@ -118,6 +122,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _addToCart(Product product) async {
+    if (product.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This product is out of stock'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final userId = _userId;
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,6 +142,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final pid = product.id;
     final currentQty = _cartItems[pid] ?? 0;
+
+    if (currentQty >= product.stock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Only ${product.stock} items available in stock'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _cartItems[pid] = currentQty + 1;
@@ -159,13 +183,17 @@ class _DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      LocationPermission permission = await Geolocator.checkPermission().catchError((_) => LocationPermission.denied);
+      LocationPermission permission = await Geolocator.checkPermission()
+          .catchError((_) => LocationPermission.denied);
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission().catchError((_) => LocationPermission.denied);
+        permission = await Geolocator.requestPermission().catchError(
+          (_) => LocationPermission.denied,
+        );
       }
 
       Position? userPos;
-      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
         try {
           userPos = await Geolocator.getCurrentPosition();
         } catch (_) {
@@ -183,12 +211,14 @@ class _DashboardPageState extends State<DashboardPage> {
         final vendor = map['vendors'];
         if (userPos != null && vendor != null) {
           try {
-            dist = Geolocator.distanceBetween(
-              userPos.latitude,
-              userPos.longitude,
-              (vendor['latitude'] as num).toDouble(),
-              (vendor['longitude'] as num).toDouble(),
-            ) / 1000;
+            dist =
+                Geolocator.distanceBetween(
+                  userPos.latitude,
+                  userPos.longitude,
+                  (vendor['latitude'] as num).toDouble(),
+                  (vendor['longitude'] as num).toDouble(),
+                ) /
+                1000;
           } catch (_) {
             dist = 0.0;
           }
@@ -211,8 +241,12 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Product> get _filteredProducts {
     final query = _searchController.text.toLowerCase();
     return _allProducts.where((p) {
-      final matchesSearch = p.name.toLowerCase().contains(query) || p.vendorName.toLowerCase().contains(query);
-      final matchesCategory = _selectedCategory == 'All' || p.categoryId.toString() == _selectedCategory;
+      final matchesSearch =
+          p.name.toLowerCase().contains(query) ||
+          p.vendorName.toLowerCase().contains(query);
+      final matchesCategory =
+          _selectedCategory == 'All' ||
+          p.categoryId.toString() == _selectedCategory;
       return matchesSearch && matchesCategory;
     }).toList();
   }
@@ -240,10 +274,7 @@ class _DashboardPageState extends State<DashboardPage> {
         unselectedItemColor: Colors.grey,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.storefront),
-            label: "Home",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.storefront), label: "Home"),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite),
             label: "Favorites",
@@ -252,10 +283,7 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: Icon(Icons.receipt_long),
             label: "Orders",
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: "Map",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),
             label: "Account",
@@ -277,9 +305,9 @@ class _DashboardPageState extends State<DashboardPage> {
             child: RefreshIndicator(
               onRefresh: _initialLoad,
               color: Colors.green,
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : _buildProductGrid(_filteredProducts),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildProductGrid(_filteredProducts),
             ),
           ),
         ],
@@ -288,13 +316,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildFavoritesTab() {
-    final favs = _allProducts.where((p) => _favoriteIds.contains(p.id)).toList();
+    final favs = _allProducts
+        .where((p) => _favoriteIds.contains(p.id))
+        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-          child: Text("My Favorites", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          child: Text(
+            "My Favorites",
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
         ),
         Expanded(
           child: favs.isEmpty
@@ -307,9 +340,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildHeader() {
     final user = Supabase.instance.client.auth.currentUser;
-    final email = user?.email 
-        ?? user?.userMetadata?['email'] as String? 
-        ?? 'Guest';
+    final email =
+        user?.email ?? user?.userMetadata?['email'] as String? ?? 'Guest';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -320,21 +352,39 @@ class _DashboardPageState extends State<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Davao MSME Hub",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green[900])),
-              Text("Find local Pasalubong",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Text(
+                "Davao MSME Hub",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[900],
+                ),
+              ),
+              Text(
+                "Find local Pasalubong",
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
               const SizedBox(height: 2),
               Text(
                 email,
-                style: TextStyle(fontSize: 10, color: Colors.grey[500], fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
           ),
           GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => CartPage(cartItems: _cartItems, products: _allProducts, onRefresh: _loadCart)),
+              MaterialPageRoute(
+                builder: (_) => CartPage(
+                  cartItems: _cartItems,
+                  products: _allProducts,
+                  onRefresh: _loadCart,
+                ),
+              ),
             ),
             child: Stack(
               clipBehavior: Clip.none,
@@ -346,10 +396,17 @@ class _DashboardPageState extends State<DashboardPage> {
                     top: -4,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
                       child: Text(
                         '$_cartCount',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -372,14 +429,22 @@ class _DashboardPageState extends State<DashboardPage> {
           prefixIcon: const Icon(Icons.search),
           filled: true,
           fillColor: Colors.grey[100],
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildCategoryFilters() {
-    final categories = {'All': 'All', '1': 'Fruits', '2': 'Delicacies', '3': 'Crafts'};
+    final categories = {
+      'All': 'All',
+      '1': 'Fruits',
+      '2': 'Delicacies',
+      '3': 'Crafts',
+    };
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -390,7 +455,8 @@ class _DashboardPageState extends State<DashboardPage> {
             child: ChoiceChip(
               label: Text(entry.value),
               selected: _selectedCategory == entry.key,
-              onSelected: (val) => setState(() => _selectedCategory = entry.key),
+              onSelected: (val) =>
+                  setState(() => _selectedCategory = entry.key),
               selectedColor: Colors.green[100],
             ),
           );
@@ -444,6 +510,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasInCart = cartQty > 0;
+    final isOutOfStock = product.stock <= 0;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -455,19 +522,24 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image section
             Expanded(
               flex: 3,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                     child: product.imageUrl.isNotEmpty
                         ? Image.network(product.imageUrl, fit: BoxFit.cover)
                         : Container(
                             color: Colors.grey[100],
-                            child: Icon(Icons.storefront, size: 36, color: Colors.grey[400]),
+                            child: Icon(
+                              Icons.storefront,
+                              size: 36,
+                              color: Colors.grey[400],
+                            ),
                           ),
                   ),
                   Positioned(
@@ -490,69 +562,93 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (isOutOfStock)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Out of Stock',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-
-            // Info section
-           Expanded(
-  flex: 2,
-  child: Padding(
-    padding: const EdgeInsets.fromLTRB(8, 6, 8, 6), // reduced padding
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween, // distribute space evenly
-      children: [
-        // Product name
-        Text(
-          product.name,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        // Vendor name — muted
-        Text(
-          product.vendorName,
-          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        // Price
-        Text(
-          '₱${product.price.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: Colors.green[800],
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
-        // Add to cart button
-        SizedBox(
-          width: double.infinity,
-          height: 24,
-          child: ElevatedButton.icon(
-            onPressed: onAddToCart,
-            icon: const Icon(Icons.add_shopping_cart, size: 10),
-            label: Text(
-              hasInCart ? 'In ($cartQty)' : 'Add',
-              style: const TextStyle(fontSize: 9),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: hasInCart ? Colors.grey[700] : Colors.green[800],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      product.vendorName,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '₱${product.price.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Colors.green[800],
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 24,
+                      child: ElevatedButton.icon(
+                        onPressed: isOutOfStock ? null : onAddToCart,
+                        icon: const Icon(Icons.add_shopping_cart, size: 10),
+                        label: Text(
+                          hasInCart
+                              ? 'In ($cartQty)'
+                              : (isOutOfStock ? 'Out of Stock' : 'Add'),
+                          style: const TextStyle(fontSize: 9),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isOutOfStock
+                              ? Colors.grey
+                              : (hasInCart
+                                    ? Colors.grey[700]
+                                    : Colors.green[800]),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          elevation: 0,
+                          minimumSize: Size.zero,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              elevation: 0,
-              minimumSize: Size.zero,
             ),
-          ),
-        ),
-      ],
-    ),
-  ),
-),
           ],
         ),
       ),

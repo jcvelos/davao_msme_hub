@@ -49,10 +49,24 @@ class _CartPageState extends State<CartPage> {
     if (userId == null) return;
 
     final currentQty = _localCart[productId] ?? 0;
+    final product = widget.products.firstWhere((p) => p.id == productId);
+    final maxQty = product.stock;
     final newQty = currentQty + delta;
 
     if (newQty <= 0) {
       _removeItem(productId);
+      return;
+    }
+
+    if (newQty > maxQty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Only ${product.stock} items available in stock'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
@@ -93,19 +107,45 @@ class _CartPageState extends State<CartPage> {
   Future<void> _checkout() async {
     if (_localCart.isEmpty) return;
 
+    for (var entry in _localCart.entries) {
+      final product = widget.products.firstWhere((p) => p.id == entry.key);
+      if (product.stock < entry.value) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Insufficient stock for ${product.name}. Only ${product.stock} available.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     final userId = _userId;
     if (userId == null) return;
 
     try {
       final firstProduct = _cartProducts.first;
-      await Supabase.instance.client.from('products').select('vendor_id').eq('id', firstProduct.id).single();
-      
-      final orderResponse = await Supabase.instance.client.from('orders').insert({
-        'customer_name': Supabase.instance.client.auth.currentUser?.email ?? 'Guest',
-        'total_amount': _totalAmount,
-        'status': 'pending',
-      }).select().single();
+      await Supabase.instance.client
+          .from('products')
+          .select('vendor_id')
+          .eq('id', firstProduct.id)
+          .single();
+
+      final orderResponse = await Supabase.instance.client
+          .from('orders')
+          .insert({
+            'customer_name':
+                Supabase.instance.client.auth.currentUser?.email ?? 'Guest',
+            'total_amount': _totalAmount,
+            'status': 'pending',
+          })
+          .select()
+          .single();
 
       final orderId = orderResponse['id'];
 
@@ -123,6 +163,15 @@ class _CartPageState extends State<CartPage> {
           .from('carts')
           .delete()
           .eq('user_id', userId);
+
+      for (var entry in _localCart.entries) {
+        final product = widget.products.firstWhere((p) => p.id == entry.key);
+        final newStock = product.stock - entry.value;
+        await Supabase.instance.client
+            .from('products')
+            .update({'stock_quantity': newStock})
+            .eq('id', entry.key);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,14 +207,23 @@ class _CartPageState extends State<CartPage> {
         foregroundColor: Colors.white,
       ),
       body: _cartProducts.isEmpty
-          ? const Center(child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('Your cart is empty', style: TextStyle(fontSize: 18, color: Colors.grey)),
-              ],
-            ))
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Your cart is empty',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
           : Column(
               children: [
                 Expanded(
@@ -179,14 +237,43 @@ class _CartPageState extends State<CartPage> {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: product.imageUrl.isNotEmpty
-                              ? Image.network(product.imageUrl, width: 50, fit: BoxFit.cover)
-                              : Container(width: 50, color: Colors.grey[300], child: const Icon(Icons.image)),
-                          title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ? Image.network(
+                                  product.imageUrl,
+                                  width: 50,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 50,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.image),
+                                ),
+                          title: Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('₱${product.price}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                              Text('Subtotal: ₱${(product.price * qty).toStringAsFixed(2)}'),
+                              Text(
+                                '₱${product.price}',
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Subtotal: ₱${(product.price * qty).toStringAsFixed(2)}',
+                              ),
+                              Text(
+                                'Stock: ${product.stock}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: product.stock > 0
+                                      ? Colors.grey[600]
+                                      : Colors.red,
+                                ),
+                              ),
                             ],
                           ),
                           trailing: Row(
@@ -194,9 +281,16 @@ class _CartPageState extends State<CartPage> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => _updateQuantity(product.id, -1),
+                                onPressed: () =>
+                                    _updateQuantity(product.id, -1),
                               ),
-                              Text('$qty', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text(
+                                '$qty',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline),
                                 onPressed: () => _updateQuantity(product.id, 1),
@@ -213,7 +307,13 @@ class _CartPageState extends State<CartPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, -2))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
                   ),
                   child: SafeArea(
                     child: Column(
@@ -221,8 +321,21 @@ class _CartPageState extends State<CartPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Total (${_totalItems} items)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text('���${_totalAmount.toStringAsFixed(2)}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green[700])),
+                            Text(
+                              'Total (${_totalItems} items)',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '���${_totalAmount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -236,8 +349,13 @@ class _CartPageState extends State<CartPage> {
                               foregroundColor: Colors.white,
                             ),
                             child: _isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text('Checkout', style: TextStyle(fontSize: 16)),
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text(
+                                    'Checkout',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
                           ),
                         ),
                       ],
